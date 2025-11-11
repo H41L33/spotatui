@@ -65,26 +65,6 @@ const SCOPES: [&str; 14] = [
   "user-read-recently-played",
 ];
 
-/// get token automatically with local webserver
-pub async fn get_token_auto(spotify_oauth: &mut SpotifyOAuth, port: u16) -> Option<TokenInfo> {
-  match spotify_oauth.get_cached_token().await {
-    Some(token_info) => Some(token_info),
-    None => match redirect_uri_web_server(spotify_oauth, port) {
-      Ok(mut url) => process_token(spotify_oauth, &mut url).await,
-      Err(()) => {
-        println!("Starting webserver failed. Continuing with manual authentication");
-        request_token(spotify_oauth);
-        println!("Enter the URL you were redirected to: ");
-        let mut input = String::new();
-        match io::stdin().read_line(&mut input) {
-          Ok(_) => process_token(spotify_oauth, &mut input).await,
-          Err(_) => None,
-        }
-      }
-    },
-  }
-}
-
 fn close_application() -> Result<()> {
   disable_raw_mode()?;
   let mut stdout = io::stdout();
@@ -209,56 +189,101 @@ of the app. Beware that this comes at a CPU cost!",
   let config_paths = client_config.get_or_build_paths()?;
 
   // Start authorization with spotify
-  let mut oauth = SpotifyOAuth::default()
-    .client_id(&client_config.client_id)
-    .client_secret(&client_config.client_secret)
-    .redirect_uri(&client_config.get_redirect_uri())
-    .cache_path(config_paths.token_cache_path)
-    .scope(&SCOPES.join(" "))
-    .build();
+  let creds = Credentials::new(&client_config.client_id, &client_config.client_secret);
+
+  let oauth = OAuth {
+    redirect_uri: client_config.get_redirect_uri(),
+    scopes: SCOPES.iter().map(|s| s.to_string()).collect(),
+    ..Default::default()
+  };
+
+  let mut config = Config::default();
+  config.cache_path = config_paths.token_cache_path;
+
+  let mut spotify = AuthCodeSpotify::with_config(creds, oauth, config);
 
   let config_port = client_config.get_port();
-  match get_token_auto(&mut oauth, config_port).await {
-    Some(token_info) => {
-      let (sync_io_tx, sync_io_rx) = std::sync::mpsc::channel::<IoEvent>();
 
-      let (spotify, token_expiry) = get_spotify(token_info);
+  // Attempt to read token from cache.
+  // Gracefully handle missing cache file - read_token_cache returns Ok(None) if file doesn't exist
+  let token_result = spotify.read_token_cache(true).await;
+  let has_cached_token = match token_result {
+    Ok(Some(_)) => true,
+    Ok(None) => false,
+    Err(_) => false, // Treat cache read errors as "no token"
+  };
 
-      // Initialise app state
-      let app = Arc::new(Mutex::new(App::new(
-        sync_io_tx,
-        user_config.clone(),
-        token_expiry,
-      )));
-
-      // Work with the cli (not really async)
-      if let Some(cmd) = matches.subcommand_name() {
-        // Save, because we checked if the subcommand is present at runtime
-        let m = matches.subcommand_matches(cmd).unwrap();
-        let network = Network::new(oauth, spotify, client_config, &app);
-        println!(
-          "{}",
-          cli::handle_matches(m, cmd.to_string(), network, user_config).await?
-        );
-      // Launch the UI (async)
-      } else {
-        let cloned_app = Arc::clone(&app);
-        std::thread::spawn(move || {
-          let mut network = Network::new(oauth, spotify, client_config, &app);
-          start_tokio(sync_io_rx, &mut network);
-        });
-        // The UI must run in the "main" thread
-        start_ui(user_config, &cloned_app).await?;
+  if !has_cached_token {
+    // If token is not in cache, get it from web flow
+    match redirect_uri_web_server(&mut spotify, config_port) {
+      Ok(url) => {
+        if let Some(code) = spotify.parse_response_code(&url) {
+          spotify.request_token(&code).await?;
+        }
+      }
+      Err(()) => {
+        println!("Starting webserver failed. Continuing with manual authentication");
+        let url = spotify.get_authorize_url(false)?;
+        println!("Please open this URL in your browser: {}", url);
+        println!("Enter the URL you were redirected to: ");
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+        if let Some(code) = spotify.parse_response_code(&input) {
+          spotify.request_token(&code).await?;
+        }
       }
     }
-    None => println!("\nSpotify auth failed"),
+  }
+
+  // The client is now authenticated and ready to be used.
+  // The token will be automatically refreshed by rspotify.
+  // Access the token to get expiry time
+  let token_lock = spotify.token.lock().await.expect("Failed to lock token");
+  let token_expiry = if let Some(ref token) = *token_lock {
+    // Convert TimeDelta to SystemTime
+    let expires_in_secs = token.expires_in.num_seconds() as u64;
+    SystemTime::now()
+      .checked_add(std::time::Duration::from_secs(expires_in_secs))
+      .unwrap_or_else(SystemTime::now)
+  } else {
+    // If no token, set expiry to now so we trigger refresh
+    SystemTime::now()
+  };
+  drop(token_lock); // Release the lock
+
+  let (sync_io_tx, sync_io_rx) = std::sync::mpsc::channel::<IoEvent>();
+
+  // Initialise app state
+  let app = Arc::new(Mutex::new(App::new(
+    sync_io_tx,
+    user_config.clone(),
+    token_expiry,
+  )));
+
+  // Work with the cli (not really async)
+  if let Some(cmd) = matches.subcommand_name() {
+    // Save, because we checked if the subcommand is present at runtime
+    let m = matches.subcommand_matches(cmd).unwrap();
+    let network = Network::new(spotify, client_config, &app);
+    println!(
+      "{}",
+      cli::handle_matches(m, cmd.to_string(), network, user_config).await?
+    );
+  // Launch the UI (async)
+  } else {
+    let cloned_app = Arc::clone(&app);
+    tokio::spawn(async move {
+      let mut network = Network::new(spotify, client_config, &app);
+      start_tokio(sync_io_rx, &mut network).await;
+    });
+    // The UI must run in the "main" thread
+    start_ui(user_config, &cloned_app).await?;
   }
 
   Ok(())
 }
 
-#[tokio::main]
-async fn start_tokio<'a>(io_rx: std::sync::mpsc::Receiver<IoEvent>, network: &mut Network) {
+async fn start_tokio(io_rx: std::sync::mpsc::Receiver<IoEvent>, network: &mut Network) {
   while let Ok(io_event) = io_rx.recv() {
     network.handle_network_event(io_event).await;
   }
