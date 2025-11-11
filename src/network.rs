@@ -5,6 +5,7 @@ use crate::app::{
 };
 use crate::config::ClientConfig;
 use anyhow::anyhow;
+use futures::StreamExt;
 use rspotify::{
   model::{
     album::SimplifiedAlbum,
@@ -299,10 +300,14 @@ impl Network {
   }
 
   async fn get_devices(&mut self) {
-    if let Ok(result) = self.spotify.devices().await {
+    if let Ok(devices_vec) = self.spotify.device().await {
       let mut app = self.app.lock().await;
       app.push_navigation_stack(RouteId::SelectedDevice, ActiveBlock::SelectDevice);
-      if !result.devices.is_empty() {
+      if !devices_vec.is_empty() {
+        // Wrap Vec<Device> in DevicePayload
+        let result = rspotify::model::device::DevicePayload {
+          devices: devices_vec,
+        };
         app.devices = Some(result);
         // Select the first device in the list
         app.selected_device_index = Some(0);
@@ -380,23 +385,35 @@ impl Network {
   }
 
   async fn get_playlist_tracks(&mut self, playlist_id: PlaylistId<'_>, playlist_offset: u32) {
-    if let Ok(playlist_tracks) = self
+    // playlist_items returns a Stream in rspotify 0.12, collect all items
+    let items: Vec<PlaylistItem> = self
       .spotify
-      .playlist_items(
-        playlist_id,
-        None,
-        Some(self.large_search_limit),
-        Some(playlist_offset),
-        None,
-      )
-      .await
-    {
-      self.set_playlist_tracks_to_table(&playlist_tracks).await;
+      .playlist_items(playlist_id, None, None)
+      .filter_map(|result| async {
+        match result {
+          Ok(item) => Some(item),
+          Err(_) => None,
+        }
+      })
+      .collect()
+      .await;
 
-      let mut app = self.app.lock().await;
-      app.playlist_tracks = Some(playlist_tracks);
-      app.push_navigation_stack(RouteId::TrackTable, ActiveBlock::TrackTable);
+    // Build a Page manually since we collected the stream
+    let playlist_tracks = Page {
+      href: String::new(), // Not needed for our use case
+      items,
+      limit: self.large_search_limit,
+      next: None,
+      offset: playlist_offset,
+      previous: None,
+      total: 0, // We don't have this from the stream
     };
+
+    self.set_playlist_tracks_to_table(&playlist_tracks).await;
+
+    let mut app = self.app.lock().await;
+    app.playlist_tracks = Some(playlist_tracks);
+    app.push_navigation_stack(RouteId::TrackTable, ActiveBlock::TrackTable);
   }
 
   async fn set_playlist_tracks_to_table(&mut self, playlist_track_page: &Page<PlaylistItem>) {

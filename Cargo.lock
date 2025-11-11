@@ -1761,6 +1761,7 @@ dependencies = [
  "clap",
  "crossterm",
  "dirs",
+ "futures",
  "rand",
  "ratatui",
  "rspotify",
