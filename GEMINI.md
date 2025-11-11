@@ -80,6 +80,7 @@
 - ✅ Updated `arboard` to 3.4
 - ✅ Updated `dirs` to 5.0
 - ✅ Updated `serde_yaml` to 0.9
+- ✅ Added a direct `futures` dependency for `StreamExt` helpers in `network.rs`
 
 ### Global Type Renames (All `.rs` files)
 - ✅ Replaced all `use tui::` → `use ratatui::` imports
@@ -105,8 +106,11 @@
   - ✅ Corrected `refresh_authentication` to be a proper no-op.
 -  - ✅ Removed unused `EpisodeId` and `SystemTime` imports.
 -  - ⚠️ Stream API errors remain (artist_albums, playlists) - next priority after typed-ID dispatch fixes.
-- ✅ **src/cli/cli_app.rs**: Stripped leftover `<'a>` lifetimes from `CliApp` struct and impl.
-- 🔶 **src/ui/**: Base `ratatui` migration (Line/Text fixes, audio_analysis draw signature) landed, but most draw helpers in `src/ui/mod.rs` still use `Frame<B>` + `where B: Backend`, and duration/resume conversions still rely on `as_millis()` / `resume_position_ms`.
+- ✅ **src/cli/cli_app.rs**/**src/cli/handle.rs**: CLI normalized to the new APIs (typed `PlayableId`/`PlayContextId` dispatch, clap lifetime annotations, progress/duration parsing moved to `CurrentPlaybackContext.progress`).
+- ✅ **src/ui/**: ratatui migration completed for draw helpers
+  - ✅ Converted all `Frame<B>` + `where B: Backend` to `Frame<'_>` in `src/ui/mod.rs`
+  - ✅ Replaced `ResumePoint::resume_position_ms` with `resume_position`
+  - ✅ Kept `std::time::Duration::as_millis()` where appropriate
 
 ---
 
@@ -114,23 +118,30 @@
 
 ### High Priority - Core Functionality
 
-#### Typed Spotify IDs (Network + App)
-- ✅ `IoEvent` payloads now use typed IDs (`TrackId`, `AlbumId`, `ArtistId`, `ShowId`, `PlaylistId`, `PlayableId`) from `rspotify::model::idtypes`
-- ✅ `network.rs` imports updated to use correct `idtypes` module instead of `id`
-- ✅ `app.rs` imports updated to use `idtypes`
-- ✅ `PlayContextId` replaces `ContextId` throughout  
-- ✅ App continues to store IDs as `String`s in HashSets (simpler comparison logic)
-- ❌ **Critical**: Handlers still dispatch String IDs; need conversion helpers in each handler file
-  - Pattern: `if let Ok(id) = TrackId::from_id(&id_string) { app.dispatch(...) }`
-  - Affects: track_table.rs, album_tracks.rs, recently_played.rs, playbar.rs, artist.rs, search_results.rs, input.rs, podcasts.rs, and many methods in app.rs
+#### CLI Module Normalization
+- ✅ **COMPLETE**: CLI now builds URIs from typed IDs, wraps queue/start events in `PlayableId`/`PlayContextId`, and reads progress via `CurrentPlaybackContext.progress`. Needs manual smoke testing but no longer blocks the build.
 
-#### Playback & Queue helpers
-- ❌ `start_playback`, queue additions still need typed ID conversions from handlers
-- ❌ Recommendation helpers in app.rs need typed ID conversions
+#### Typed Spotify IDs (Network + Handlers)
+- ✅ `IoEvent` payloads and CLI dispatch now pass typed IDs end-to-end.
+- ❌ `get_current_playback` still dispatches `CurrentUserSavedTracksContains(vec![track_id.to_string()])` (`src/network.rs:333-339`); convert that to `TrackId::into_static` so it compiles again.
+- ❌ `set_tracks_to_table` continues to collect `Vec<String>` before dispatching `CurrentUserSavedTracksContains` (`src/network.rs:419-444`); convert inside the network layer instead of bouncing strings through the channel.
+- ❌ Handler modules (`track_table.rs`, `album_tracks.rs`, `recently_played.rs`, `playbar.rs`, `artist.rs`, `search_results.rs`, `input.rs`, `podcasts.rs`, `playlist.rs`) still emit string IDs when queueing IoEvents; these need the same `.from_id(...).into_static()` helpers before the playback helpers compile.
+
+#### Stream-returning rspotify APIs
+- 🔶 **IN PROGRESS**: `futures::StreamExt` is wired up and `get_playlist_tracks` now consumes the paginator, but we need to finish the migration.
+  - ⚠️ The new `get_playlist_tracks` eagerly collects *every* playlist item into memory and fabricates a `Page` with `total = 0`, so pagination/offset controls break and large playlists can blow past memory limits. Reimplement this using `playlist_items_manual` (limit/offset aware) so we keep the real metadata and only fetch one page at a time.
+  - ❌ `get_made_for_you_playlist_tracks` still uses the old `.playlist_items(...limit, offset)` signature and even `.await`s the stream, which fails to compile.
+  - ❌ `artist_albums` and `current_user_playlists` (the ones inside `try_join!`) still assume the pre-stream API.
+  - ❌ Search endpoints need to be revisited—the `(market, limit)` arguments changed order/types in 0.12.
+  - ❌ Podcast/show endpoints require the same stream treatment once we settle on the new APIs.
+
+#### Show & Podcast library APIs
+- ❌ `current_user_saved_shows` was removed upstream; `src/network.rs:480-494` has to be rewritten against the new `users_saved_shows` endpoints or dropped temporarily.
+- ❌ Saved-show helpers (`CurrentUserSavedShowsContains`, add/remove) still assume string IDs and the old method names; align them after the new endpoint is chosen.
 
 #### UI Ratatui Follow-ups
-- ❌ Most draw helpers in `src/ui/mod.rs` still use the old `Frame<B>` signatures and `where B: Backend` bounds; they need to switch to `Frame<'_>`.
-- ❌ Chrono `TimeDelta` fields are still accessed via `duration.as_millis()` and `ResumePoint::resume_position_ms`; convert to `.num_milliseconds()` and `resume_position`.
+- ✅ All draw helpers now use `Frame<'_>`; Backend bounds removed.
+- ✅ `resume_position_ms` replaced with `resume_position` in episode tables.
 - ❌ Queue lookup and ID comparisons may still fail if they expect typed IDs instead of Strings; decide whether to store typed IDs or stringify at render time.
 
 #### Tokio Updates
@@ -175,9 +186,9 @@
 ## Known Issues & Blockers
 
 ### Compilation Errors (Current)
-- **UI frame/duration migration incomplete**: Most draw helpers in `src/ui/mod.rs` still use `Frame<B>` + `where B: Backend`, and duration fields still call `as_millis()` / `resume_position_ms`, so `cargo check` fails with E0107/E0599.
-- **Typed-ID dispatch conversions incomplete**: Handlers (track_table.rs, album_tracks.rs, playbar.rs, artist.rs, search_results.rs, input.rs, podcasts.rs, recently_played.rs, playlist.rs) and app.rs helper methods still dispatch `IoEvent`s with `String` IDs instead of calling `.into_static()` on typed IDs. This causes "does not live long enough" errors.
-- **Stream API incompatibility**: `rspotify 0.12` returns `Stream` types for paginated endpoints (artist_albums, playlists), but code tries to `.await` them directly. Need to collect/consume streams properly with `futures::StreamExt`.
+- **Typed-ID dispatch regressions**: `src/network.rs:333-339` and `src/network.rs:419-444` still enqueue `Vec<String>` for `IoEvent::CurrentUserSavedTracksContains`, so `cargo check` fails until those code paths emit `TrackId<'static>` values.
+- **Incomplete playlist stream migration**: `src/network.rs:456-466` still calls the pre-0.12 `.playlist_items(...limit, offset)` signature (and `.await`s the paginator), which now errors with mismatched arguments and "`Stream` is not a future".
+- **Removed show endpoints**: `rspotify` 0.12 dropped `current_user_saved_shows`, so the call at `src/network.rs:480-494` no longer exists—saved-show fetching needs to be rewritten against the new endpoints before the tree compiles again.
 
 ### Design Decisions Needed
 1. Do we store typed IDs (`TrackId`, `AlbumId`, …) inside `App`/UI state, or do we continue storing Strings and convert at the rspotify call sites?
@@ -204,26 +215,26 @@
 | `src/handlers/*.rs` | ✅ Types updated | Model types renamed globally; typed-ID dispatch conversions needed |
 
 ### UI Files
-| File                       | Status     | Notes                                                                                            |
-| -------------------------- | ---------- | ------------------------------------------------------------------------------------------------ |
-| `src/ui/mod.rs`            | 🔶 Partial  | Base `ratatui` changes done, but draw helpers still use `Frame<B>` and `as_millis()` conversions. |
-| `src/ui/audio_analysis.rs` | ✅ Complete | `Frame<B>` → `Frame<'_>`, Backend import removed.                                                |
-| `src/ui/help.rs`           | ✅ Complete | No generic signatures, no changes needed.                                                        |
+| File                       | Status     | Notes                                                                                 |
+| -------------------------- | ---------- | ------------------------------------------------------------------------------------- |
+| `src/ui/mod.rs`            | ✅ Complete | All draw helpers migrated to `Frame<'_>`; replaced `resume_position_ms` appropriately |
+| `src/ui/audio_analysis.rs` | ✅ Complete | `Frame<B>` → `Frame<'_>`, Backend import removed.                                     |
+| `src/ui/help.rs`           | ✅ Complete | No generic signatures, no changes needed.                                             |
 
 ### CLI Files
-| File                 | Status          | Notes                                     |
-| -------------------- | --------------- | ----------------------------------------- |
-| `src/cli/cli_app.rs` | ✅ Complete      | Lifetime `<'a>` stripped from struct/impl |
-| `src/cli/*.rs`       | ✅ Types updated | Needs testing with new API                |
+| File                 | Status          | Notes                                                             |
+| -------------------- | --------------- | ----------------------------------------------------------------- |
+| `src/cli/cli_app.rs` | ✅ Complete      | Typed-ID dispatch, URI builders, and progress parsing all updated |
+| `src/cli/*.rs`       | ✅ Types updated | Compiles with new API; still needs CLI smoke testing              |
 
 ---
 
 ## Next Steps
 
 ### Immediate Actions (to get it compiling)
-1. ❌ **Finish the UI migration**: convert every `Frame<B>` signature in `src/ui/mod.rs` to `Frame<'_>`, drop `where B: Backend`, and fix chrono duration/resume accessors.
-2. ❌ **Typed-ID dispatch conversions**: Convert all `app.dispatch(IoEvent::...)` calls in `src/app.rs` + `src/handlers/*.rs` to build owned IDs via `.into_static()` (wrap tracks/episodes in `PlayableId`).
-3. ❌ **Stream API fixes**: Replace `.await` on stream-returning rspotify calls (`playlist_items`, `artist_albums`, `current_user_playlists`, etc.) with proper `StreamExt::collect()` handling in `src/network.rs`.
+1. ❌ Fix the remaining `src/network.rs` compile errors: emit typed IDs when dispatching `CurrentUserSavedTracksContains`, remove the bogus `.await` on the playlist paginator, and decide how to fetch saved shows now that `current_user_saved_shows` is gone.
+2. ❌ Finish the playlist/paginator migration: use `playlist_items_manual` (or manual chunking) for both regular playlists and "Made for You" so offsets, totals, and memory usage stay sane; port `artist_albums` / `current_user_playlists` next.
+3. ❌ Typed-ID dispatch conversions: Update `src/app.rs` plus every handler (`track_table.rs`, `album_tracks.rs`, `recently_played.rs`, etc.) to call `.from_id(...).into_static()` before they enqueue IoEvents like `StartPlayback`, `AddItemToQueue`, `ToggleSaveTrack`, etc.
 
 ### Short Term (to get it working)
 1. Re-test every `Network` API method once typed-ID dispatch & stream handling compile; ensure logging/error propagation is aligned with new APIs.
@@ -259,5 +270,5 @@
 
 ---
 
-*Last Updated: 2025-11-11 by Codex*
+*Last Updated: 2025-11-11 by Codex (UI ratatui draw migration completed)*
 *Status: Migration In Progress - Compilation Failing*
