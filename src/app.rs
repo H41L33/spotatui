@@ -802,9 +802,9 @@ impl App {
       None => {
         if let Some(saved_artists) = &self.library.saved_artists.clone().get_results(None) {
           if let Some(last_artist) = saved_artists.items.last() {
-            if let Ok(artist_id) = ArtistId::from_id(&last_artist.id) {
-              self.dispatch(IoEvent::GetFollowedArtists(Some(artist_id)));
-            }
+            self.dispatch(IoEvent::GetFollowedArtists(Some(
+              last_artist.id.clone().into_static(),
+            )));
           }
         }
       }
@@ -888,9 +888,7 @@ impl App {
           if let Some(selected_index) = self.search_results.selected_album_index {
             let selected_album = &albums.items[selected_index];
             if let Some(album_id) = selected_album.id.clone() {
-              if let Ok(album_id) = AlbumId::from_id(&album_id) {
-                self.dispatch(IoEvent::CurrentUserSavedAlbumDelete(album_id));
-              }
+              self.dispatch(IoEvent::CurrentUserSavedAlbumDelete(album_id.into_static()));
             }
           }
         }
@@ -899,9 +897,7 @@ impl App {
         if let Some(albums) = self.library.saved_albums.get_results(None) {
           if let Some(selected_album) = albums.items.get(self.album_list_index) {
             let album_id = selected_album.album.id.clone();
-            if let Ok(album_id) = AlbumId::from_id(&album_id) {
-              self.dispatch(IoEvent::CurrentUserSavedAlbumDelete(album_id));
-            }
+            self.dispatch(IoEvent::CurrentUserSavedAlbumDelete(album_id.into_static()));
           }
         }
       }
@@ -909,9 +905,7 @@ impl App {
         if let Some(artist) = &self.artist {
           if let Some(selected_album) = artist.albums.items.get(artist.selected_album_index) {
             if let Some(album_id) = selected_album.id.clone() {
-              if let Ok(album_id) = AlbumId::from_id(&album_id) {
-                self.dispatch(IoEvent::CurrentUserSavedAlbumDelete(album_id));
-              }
+              self.dispatch(IoEvent::CurrentUserSavedAlbumDelete(album_id.into_static()));
             }
           }
         }
@@ -927,9 +921,7 @@ impl App {
           if let Some(selected_index) = self.search_results.selected_album_index {
             let selected_album = &albums.items[selected_index];
             if let Some(album_id) = selected_album.id.clone() {
-              if let Ok(album_id) = AlbumId::from_id(&album_id) {
-                self.dispatch(IoEvent::CurrentUserSavedAlbumAdd(album_id));
-              }
+              self.dispatch(IoEvent::CurrentUserSavedAlbumAdd(album_id.into_static()));
             }
           }
         }
@@ -938,9 +930,7 @@ impl App {
         if let Some(artist) = &self.artist {
           if let Some(selected_album) = artist.albums.items.get(artist.selected_album_index) {
             if let Some(album_id) = selected_album.id.clone() {
-              if let Ok(album_id) = AlbumId::from_id(&album_id) {
-                self.dispatch(IoEvent::CurrentUserSavedAlbumAdd(album_id));
-              }
+              self.dispatch(IoEvent::CurrentUserSavedAlbumAdd(album_id.into_static()));
             }
           }
         }
@@ -983,7 +973,7 @@ impl App {
       None => {
         if let Some(show_episodes) = &self.library.show_episodes.get_results(None) {
           let offset = Some(show_episodes.offset + show_episodes.limit);
-          if let Ok(show_id) = ShowId::from_id(&show_id) {
+          if let Ok(show_id) = ShowId::from_id(show_id) {
             self.dispatch(IoEvent::GetCurrentShowEpisodes(show_id, offset));
           }
         }
@@ -1003,27 +993,30 @@ impl App {
         if let Some(artists) = &self.search_results.artists {
           if let Some(selected_index) = self.search_results.selected_artists_index {
             let selected_artist: &FullArtist = &artists.items[selected_index];
-            if let Ok(artist_id) = ArtistId::from_id(&selected_artist.id) {
-              self.dispatch(IoEvent::UserUnfollowArtists(vec![artist_id]));
-            }
+            self.dispatch(IoEvent::UserUnfollowArtists(vec![selected_artist
+              .id
+              .clone()
+              .into_static()]));
           }
         }
       }
       ActiveBlock::AlbumList => {
         if let Some(artists) = self.library.saved_artists.get_results(None) {
           if let Some(selected_artist) = artists.items.get(self.artists_list_index) {
-            if let Ok(artist_id) = ArtistId::from_id(&selected_artist.id) {
-              self.dispatch(IoEvent::UserUnfollowArtists(vec![artist_id]));
-            }
+            self.dispatch(IoEvent::UserUnfollowArtists(vec![selected_artist
+              .id
+              .clone()
+              .into_static()]));
           }
         }
       }
       ActiveBlock::ArtistBlock => {
         if let Some(artist) = &self.artist {
           let selected_artis = &artist.related_artists[artist.selected_related_artist_index];
-          if let Ok(artist_id) = ArtistId::from_id(&selected_artis.id) {
-            self.dispatch(IoEvent::UserUnfollowArtists(vec![artist_id]));
-          }
+          self.dispatch(IoEvent::UserUnfollowArtists(vec![selected_artis
+            .id
+            .clone()
+            .into_static()]));
         }
       }
       _ => (),
@@ -1036,18 +1029,20 @@ impl App {
         if let Some(artists) = &self.search_results.artists {
           if let Some(selected_index) = self.search_results.selected_artists_index {
             let selected_artist: &FullArtist = &artists.items[selected_index];
-            if let Ok(artist_id) = ArtistId::from_id(&selected_artist.id) {
-              self.dispatch(IoEvent::UserFollowArtists(vec![artist_id]));
-            }
+            self.dispatch(IoEvent::UserFollowArtists(vec![selected_artist
+              .id
+              .clone()
+              .into_static()]));
           }
         }
       }
       ActiveBlock::ArtistBlock => {
         if let Some(artist) = &self.artist {
           let selected_artis = &artist.related_artists[artist.selected_related_artist_index];
-          if let Ok(artist_id) = ArtistId::from_id(&selected_artis.id) {
-            self.dispatch(IoEvent::UserFollowArtists(vec![artist_id]));
-          }
+          self.dispatch(IoEvent::UserFollowArtists(vec![selected_artis
+            .id
+            .clone()
+            .into_static()]));
         }
       }
       _ => (),
@@ -1065,16 +1060,11 @@ impl App {
       let selected_id = selected_playlist.id.clone();
       let selected_public = selected_playlist.public;
       let selected_owner_id = selected_playlist.owner.id.clone();
-      if let (Ok(owner_id), Ok(playlist_id)) = (
-        UserId::from_id(&selected_owner_id),
-        PlaylistId::from_id(&selected_id),
-      ) {
-        self.dispatch(IoEvent::UserFollowPlaylist(
-          owner_id,
-          playlist_id,
-          selected_public,
-        ));
-      }
+      self.dispatch(IoEvent::UserFollowPlaylist(
+        selected_owner_id.into_static(),
+        selected_id.into_static(),
+        selected_public,
+      ));
     }
   }
 
@@ -1085,11 +1075,10 @@ impl App {
       let selected_playlist = &playlists.items[selected_index];
       let selected_id = selected_playlist.id.clone();
       let user_id = user.id.clone();
-      if let (Ok(user_id), Ok(playlist_id)) =
-        (UserId::from_id(&user_id), PlaylistId::from_id(&selected_id))
-      {
-        self.dispatch(IoEvent::UserUnfollowPlaylist(user_id, playlist_id))
-      }
+      self.dispatch(IoEvent::UserUnfollowPlaylist(
+        user_id.into_static(),
+        selected_id.into_static(),
+      ));
     }
   }
 
@@ -1102,11 +1091,10 @@ impl App {
       let selected_playlist = &playlists.items[selected_index];
       let selected_id = selected_playlist.id.clone();
       let user_id = user.id.clone();
-      if let (Ok(user_id), Ok(playlist_id)) =
-        (UserId::from_id(&user_id), PlaylistId::from_id(&selected_id))
-      {
-        self.dispatch(IoEvent::UserUnfollowPlaylist(user_id, playlist_id))
-      }
+      self.dispatch(IoEvent::UserUnfollowPlaylist(
+        user_id.into_static(),
+        selected_id.into_static(),
+      ));
     }
   }
 
