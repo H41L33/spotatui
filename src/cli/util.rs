@@ -1,13 +1,30 @@
 use clap::ArgMatches;
 use rspotify::{
+  model::enums::RepeatState,
+  model::idtypes::Id,
   model::{
     album::SimplifiedAlbum, artist::FullArtist, artist::SimplifiedArtist,
     playlist::SimplifiedPlaylist, show::FullEpisode, show::SimplifiedShow, track::FullTrack,
   },
-  model::enums::RepeatState,
 };
+use std::time::Duration;
 
 use crate::user_config::UserConfig;
+
+// Helper function to extract URI from typed IDs or external URLs
+fn get_uri_or_fallback<T: Id>(
+  id: &Option<T>,
+  external_urls: &std::collections::HashMap<String, String>,
+) -> String {
+  if let Some(id) = id {
+    id.uri()
+  } else {
+    external_urls
+      .get("spotify")
+      .cloned()
+      .unwrap_or_else(|| "N/A".to_string())
+  }
+}
 
 // Possible types to list or search
 #[derive(Debug)]
@@ -172,34 +189,48 @@ impl Format {
     match t {
       FormatType::Album(a) => {
         let joined_artists = join_artists(a.artists.clone());
-        let mut vec = vec![Self::Album(a.name), Self::Artist(joined_artists)];
-        if let Some(uri) = a.uri {
-          vec.push(Self::Uri(uri));
-        }
-        vec
+        let uri = get_uri_or_fallback(&a.id, &a.external_urls);
+        vec![
+          Self::Album(a.name),
+          Self::Artist(joined_artists),
+          Self::Uri(uri),
+        ]
       }
-      FormatType::Artist(a) => vec![Self::Artist(a.name), Self::Uri(a.uri)],
-      FormatType::Playlist(p) => vec![Self::Playlist(p.name), Self::Uri(p.uri)],
+      FormatType::Artist(a) => {
+        let uri = a.id.uri();
+        vec![Self::Artist(a.name), Self::Uri(uri)]
+      }
+      FormatType::Playlist(p) => {
+        let uri = p.id.uri();
+        vec![Self::Playlist(p.name), Self::Uri(uri)]
+      }
       FormatType::Track(t) => {
         let joined_artists = join_artists(t.artists.clone());
+        let uri = get_uri_or_fallback(&t.id, &t.external_urls);
         vec![
           Self::Album(t.album.name),
           Self::Artist(joined_artists),
           Self::Track(t.name),
-          Self::Uri(t.uri),
+          Self::Uri(uri),
         ]
       }
-      FormatType::Show(r) => vec![
-        Self::Artist(r.publisher),
-        Self::Show(r.name),
-        Self::Uri(r.uri),
-      ],
-      FormatType::Episode(e) => vec![
-        Self::Show(e.show.name),
-        Self::Artist(e.show.publisher),
-        Self::Track(e.name),
-        Self::Uri(e.uri),
-      ],
+      FormatType::Show(r) => {
+        let uri = r.id.uri();
+        vec![
+          Self::Artist(r.publisher),
+          Self::Show(r.name),
+          Self::Uri(uri),
+        ]
+      }
+      FormatType::Episode(e) => {
+        let uri = e.id.uri();
+        vec![
+          Self::Show(e.show.name),
+          Self::Artist(e.show.publisher),
+          Self::Track(e.name),
+          Self::Uri(uri),
+        ]
+      }
     }
   }
 
@@ -217,7 +248,9 @@ impl Format {
       // needs to return a &String, I have to do it this way
       Self::Volume(s) => s.to_string(),
       Self::Position((curr, duration)) => {
-        crate::ui::util::display_track_progress(*curr as u128, *duration)
+        let current_progress_ms = *curr as u128;
+        let duration = Duration::from_millis(*duration as u64);
+        crate::ui::util::display_track_progress(current_progress_ms, duration)
       }
       Self::Flags((r, s, l)) => {
         let like = if *l {
