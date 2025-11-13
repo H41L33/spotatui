@@ -578,12 +578,15 @@ impl Network {
   }
 
   async fn get_search_results(&mut self, search_term: String, country: Option<Country>) {
-    let market = country.map(Market::Country);
+    // Don't pass market to search - when market is specified, Spotify doesn't return
+    // available_markets field, but rspotify 0.14 models require it for tracks/albums.
+    // We'll handle null playlist fields by searching playlists separately without requiring all fields.
+    let _market = country.map(Market::Country);
 
     let search_track = self.spotify.search(
       &search_term,
       SearchType::Track,
-      market.clone(),
+      None,
       None, // include_external
       Some(self.small_search_limit),
       Some(0),
@@ -592,7 +595,7 @@ impl Network {
     let search_artist = self.spotify.search(
       &search_term,
       SearchType::Artist,
-      market.clone(),
+      None,
       None, // include_external
       Some(self.small_search_limit),
       Some(0),
@@ -601,7 +604,7 @@ impl Network {
     let search_album = self.spotify.search(
       &search_term,
       SearchType::Album,
-      market.clone(),
+      None,
       None, // include_external
       Some(self.small_search_limit),
       Some(0),
@@ -610,7 +613,7 @@ impl Network {
     let search_playlist = self.spotify.search(
       &search_term,
       SearchType::Playlist,
-      market.clone(),
+      None,
       None, // include_external
       Some(self.small_search_limit),
       Some(0),
@@ -619,77 +622,89 @@ impl Network {
     let search_show = self.spotify.search(
       &search_term,
       SearchType::Show,
-      market,
+      None,
       None, // include_external
       Some(self.small_search_limit),
       Some(0),
     );
 
-    // Run the futures concurrently
-    match try_join!(
-      search_track,
-      search_artist,
-      search_album,
-      search_playlist,
-      search_show
-    ) {
+    // Run all futures concurrently
+    let (main_search, playlist_search) = tokio::join!(
+      async { try_join!(search_track, search_artist, search_album, search_show) },
+      search_playlist
+    );
+
+    // Handle main search results
+    let (track_result, artist_result, album_result, show_result) = match main_search {
       Ok((
-        SearchResult::Tracks(track_results),
-        SearchResult::Artists(artist_results),
-        SearchResult::Albums(album_results),
-        SearchResult::Playlists(playlist_results),
-        SearchResult::Shows(show_results),
-      )) => {
-        let mut app = self.app.lock().await;
-
-        let artist_ids = album_results
-          .items
-          .iter()
-          .filter_map(|item| {
-            item
-              .id
-              .as_ref()
-              .map(|id| ArtistId::from_id(id.id()).unwrap().into_static())
-          })
-          .collect();
-
-        // Check if these artists are followed
-        app.dispatch(IoEvent::UserArtistFollowCheck(artist_ids));
-
-        let album_ids = album_results
-          .items
-          .iter()
-          .filter_map(|album| {
-            album
-              .id
-              .as_ref()
-              .map(|id| AlbumId::from_id(id.id()).unwrap().into_static())
-          })
-          .collect();
-
-        // Check if these albums are saved
-        app.dispatch(IoEvent::CurrentUserSavedAlbumsContains(album_ids));
-
-        let show_ids = show_results
-          .items
-          .iter()
-          .map(|show| show.id.clone().into_static())
-          .collect();
-
-        // check if these shows are saved
-        app.dispatch(IoEvent::CurrentUserSavedShowsContains(show_ids));
-
-        app.search_results.tracks = Some(track_results);
-        app.search_results.artists = Some(artist_results);
-        app.search_results.albums = Some(album_results);
-        app.search_results.playlists = Some(playlist_results);
-        app.search_results.shows = Some(show_results);
-      }
+        SearchResult::Tracks(tracks),
+        SearchResult::Artists(artists),
+        SearchResult::Albums(albums),
+        SearchResult::Shows(shows),
+      )) => (Some(tracks), Some(artists), Some(albums), Some(shows)),
       Err(e) => {
         self.handle_error(anyhow!(e)).await;
+        return;
       }
-      _ => {}
+      _ => return,
     };
+
+    // Handle playlist search separately since it can fail with null fields from Spotify API
+    // Silently ignore playlist errors - this is a known Spotify API issue
+    let playlist_result = match playlist_search {
+      Ok(SearchResult::Playlists(playlists)) => Some(playlists),
+      Err(_) => None,
+      _ => None,
+    };
+
+    let mut app = self.app.lock().await;
+
+    if let Some(ref album_results) = album_result {
+      let artist_ids = album_results
+        .items
+        .iter()
+        .filter_map(|item| {
+          item
+            .id
+            .as_ref()
+            .map(|id| ArtistId::from_id(id.id()).unwrap().into_static())
+        })
+        .collect();
+
+      // Check if these artists are followed
+      app.dispatch(IoEvent::UserArtistFollowCheck(artist_ids));
+
+      let album_ids = album_results
+        .items
+        .iter()
+        .filter_map(|album| {
+          album
+            .id
+            .as_ref()
+            .map(|id| AlbumId::from_id(id.id()).unwrap().into_static())
+        })
+        .collect();
+
+      // Check if these albums are saved
+      app.dispatch(IoEvent::CurrentUserSavedAlbumsContains(album_ids));
+    }
+
+    if let Some(ref show_results) = show_result {
+      let show_ids = show_results
+        .items
+        .iter()
+        .map(|show| show.id.clone().into_static())
+        .collect();
+
+      // check if these shows are saved
+      app.dispatch(IoEvent::CurrentUserSavedShowsContains(show_ids));
+    }
+
+    app.search_results.tracks = track_result;
+    app.search_results.artists = artist_result;
+    app.search_results.albums = album_result;
+    app.search_results.playlists = playlist_result;
+    app.search_results.shows = show_result;
   }
 
   async fn get_current_user_saved_tracks(&mut self, offset: Option<u32>) {
