@@ -35,10 +35,11 @@ use ratatui::{
 use redirect_uri::redirect_uri_web_server;
 use rspotify::{
   prelude::*,
-  {AuthCodeSpotify, Config, Credentials, OAuth},
+  {AuthCodeSpotify, Config, Credentials, OAuth, Token},
 };
 use std::{
   cmp::{max, min},
+  fs,
   io::{self, stdout},
   panic::{self, PanicHookInfo},
   path::PathBuf,
@@ -64,6 +65,33 @@ const SCOPES: [&str; 14] = [
   "user-read-private",
   "user-read-recently-played",
 ];
+
+// Manual token cache helpers since rspotify's built-in caching isn't working
+async fn save_token_to_file(spotify: &AuthCodeSpotify, path: &PathBuf) -> Result<()> {
+  let token_lock = spotify.token.lock().await.expect("Failed to lock token");
+  if let Some(ref token) = *token_lock {
+    let token_json = serde_json::to_string_pretty(token)?;
+    fs::write(path, token_json)?;
+    println!("✓ Token saved to {}", path.display());
+  }
+  Ok(())
+}
+
+async fn load_token_from_file(spotify: &AuthCodeSpotify, path: &PathBuf) -> Result<bool> {
+  if !path.exists() {
+    return Ok(false);
+  }
+
+  let token_json = fs::read_to_string(path)?;
+  let token: Token = serde_json::from_str(&token_json)?;
+
+  let mut token_lock = spotify.token.lock().await.expect("Failed to lock token");
+  *token_lock = Some(token);
+  drop(token_lock);
+
+  println!("✓ Found cached authentication token");
+  Ok(true)
+}
 
 fn close_application() -> Result<()> {
   disable_raw_mode()?;
@@ -198,26 +226,23 @@ of the app. Beware that this comes at a CPU cost!",
   };
 
   let mut config = Config::default();
-  config.cache_path = config_paths.token_cache_path;
+  config.cache_path = config_paths.token_cache_path.clone();
 
   let mut spotify = AuthCodeSpotify::with_config(creds, oauth, config);
 
   let config_port = client_config.get_port();
 
-  // Attempt to read token from cache and validate it
-  // read_token_cache(true) will attempt to refresh if expired
-  let token_result = spotify.read_token_cache(true).await;
-  let needs_auth = match token_result {
-    Ok(Some(_)) => {
-      // Token was read from cache, but we should verify it's actually valid
-      // by checking if the token field is populated
-      let token_lock = spotify.token.lock().await.expect("Failed to lock token");
-      let has_valid_token = token_lock.is_some();
-      drop(token_lock);
-      !has_valid_token
+  // Try to load token from our manual cache
+  let needs_auth = match load_token_from_file(&spotify, &config_paths.token_cache_path).await {
+    Ok(true) => false,
+    Ok(false) => {
+      println!("No cached token found, need to authenticate");
+      true
     }
-    Ok(None) => true, // No cached token
-    Err(_) => true,   // Cache read/refresh failed
+    Err(e) => {
+      println!("Failed to read token cache: {}", e);
+      true
+    }
   };
 
   if needs_auth {
@@ -243,6 +268,8 @@ of the app. Beware that this comes at a CPU cost!",
       Ok(url) => {
         if let Some(code) = spotify.parse_response_code(&url) {
           spotify.request_token(&code).await?;
+          // Write the token to our manual cache
+          save_token_to_file(&spotify, &config_paths.token_cache_path).await?;
           println!("✓ Successfully authenticated with Spotify!");
         } else {
           return Err(anyhow!(
@@ -258,6 +285,8 @@ of the app. Beware that this comes at a CPU cost!",
         io::stdin().read_line(&mut input)?;
         if let Some(code) = spotify.parse_response_code(&input) {
           spotify.request_token(&code).await?;
+          // Write the token to our manual cache
+          save_token_to_file(&spotify, &config_paths.token_cache_path).await?;
         } else {
           return Err(anyhow!("Failed to parse authorization code from input URL"));
         }
