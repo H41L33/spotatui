@@ -187,7 +187,6 @@
 
 ## Known Issues & Blockers
 
-- **Input handling**: `src/event/key.rs:188-207` patterns don’t account for the new `KeyEventKind` / `KeyEventState` fields, so the `Key::Alt/Ctrl` match arms fail to compile until we add the missing struct members (or `..`).
 - **Album track handler drift**: `src/handlers/album_tracks.rs` still relies on `.uri` fields and string IDs; update queue/save flows to typed `PlayableId`/`TrackId` and grab URIs via typed IDs or `external_urls`.
 
 ### Design Decisions Needed
@@ -232,9 +231,9 @@
 ## Next Steps
 
 ### Immediate Actions (to get it compiling)
-1. ❌ Fix `src/event/key.rs` to match the new `KeyEvent` struct (capture or ignore `kind`/`state`) so Ctrl/Alt shortcuts compile again.
-2. ❌ Update `src/handlers/album_tracks.rs` (and other handler files) to stop using `.uri`/`String` IDs—convert queue/save flows to typed `PlayableId<'static>` and fetch URIs via typed IDs or `external_urls`.
-3. ❌ Finish the typed-ID conversions in the remaining handlers (`track_table.rs`, `album_tracks.rs`, `artist.rs`, `search_results.rs`, `input.rs`, `podcasts.rs`) so every IoEvent payload carries `TrackId<'static>`/`PlayableId`.
+1. ❌ Update `src/handlers/album_tracks.rs` (and other handler files) to stop using `.uri`/`String` IDs—convert queue/save flows to typed `PlayableId<'static>` and fetch URIs via typed IDs or `external_urls`.
+2. ❌ Finish the typed-ID conversions in the remaining handlers (`track_table.rs`, `album_tracks.rs`, `artist.rs`, `search_results.rs`, `input.rs`, `podcasts.rs`) so every IoEvent payload carries `TrackId<'static>`/`PlayableId`.
+3. ❌ Re-test search/podcast flows (CLI + UI) with the new pagination + `Market` arguments; drop the unused `futures` dependency once confirmed no code needs `StreamExt`.
 
 ### Short Term (to get it working)
 1. Re-test every `Network` API method once typed-ID dispatch & stream handling compile; ensure logging/error propagation is aligned with new APIs.
