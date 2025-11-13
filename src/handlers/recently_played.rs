@@ -45,28 +45,20 @@ pub fn handler(key: Key, app: &mut App) {
       if let Some(recently_played_result) = &app.recently_played.result.clone() {
         if let Some(selected_track) = recently_played_result.items.get(app.recently_played.index) {
           if let Some(track_id) = &selected_track.track.id {
-            // Convert to typed PlayableId<'static>
-            if let Ok(typed_id) = TrackId::from_id(track_id.id()) {
-              app.dispatch(IoEvent::ToggleSaveTrack(PlayableId::Track(
-                typed_id.into_static(),
-              )));
-            }
+            app.dispatch(IoEvent::ToggleSaveTrack(PlayableId::Track(
+              track_id.clone().into_static(),
+            )));
           };
         };
       };
     }
     Key::Enter => {
       if let Some(recently_played_result) = &app.recently_played.result.clone() {
-        // Convert track URIs to typed PlayableId
         let track_uris: Vec<PlayableId<'static>> = recently_played_result
           .items
           .iter()
           .filter_map(|item| {
-            item.track.id.as_ref().and_then(|id| {
-              TrackId::from_id(id.id())
-                .ok()
-                .map(|tid| PlayableId::Track(tid.into_static()))
-            })
+            item.track.id.as_ref().map(|track_id| PlayableId::Track(track_id.clone().into_static()))
           })
           .collect();
 
@@ -79,31 +71,24 @@ pub fn handler(key: Key, app: &mut App) {
     }
     Key::Char('r') => {
       if let Some(recently_played_result) = &app.recently_played.result.clone() {
-        let selected_track_history_item =
-          recently_played_result.items.get(app.recently_played.index);
-
-        if let Some(item) = selected_track_history_item {
-          if let Some(id) = &item.track.id {
+        if let Some(selected_track) = recently_played_result.items.get(app.recently_played.index) {
+          if let Some(track_id) = &selected_track.track.id {
             app.recommendations_context = Some(RecommendationsContext::Song);
-            app.recommendations_seed = item.track.name.clone();
-            // The app helper expects a String ID, so keep it that way for now
-            app.get_recommendations_for_track_id(id.to_string());
-          }
-        }
-      }
+            app.recommendations_seed = selected_track.track.name.clone();
+            app.get_recommendations_for_track_id(track_id.id().to_string());
+          };
+        };
+      };
     }
     _ if key == app.user_config.keys.add_item_to_queue => {
       if let Some(recently_played_result) = &app.recently_played.result.clone() {
-        if let Some(history) = recently_played_result.items.get(app.recently_played.index) {
-          if let Some(track_id) = &history.track.id {
-            // Convert to typed PlayableId<'static>
-            if let Ok(typed_id) = TrackId::from_id(track_id.id()) {
-              app.dispatch(IoEvent::AddItemToQueue(PlayableId::Track(
-                typed_id.into_static(),
-              )))
-            }
-          }
-        }
+        if let Some(selected_track) = recently_played_result.items.get(app.recently_played.index) {
+          if let Some(track_id) = &selected_track.track.id {
+            app.dispatch(IoEvent::AddItemToQueue(PlayableId::Track(
+              track_id.clone().into_static(),
+            )));
+          };
+        };
       };
     }
     _ => {}
