@@ -225,8 +225,10 @@ of the app. Beware that this comes at a CPU cost!",
     ..Default::default()
   };
 
-  let mut config = Config::default();
-  config.cache_path = config_paths.token_cache_path.clone();
+  let config = Config {
+    cache_path: config_paths.token_cache_path.clone(),
+    ..Default::default()
+  };
 
   let mut spotify = AuthCodeSpotify::with_config(creds, oauth, config);
 
@@ -355,7 +357,7 @@ async fn start_ui(user_config: UserConfig, app: &Arc<Mutex<App>>) -> Result<()> 
   let mut backend = CrosstermBackend::new(stdout);
 
   if user_config.behavior.set_window_title {
-    backend.execute(SetTitle("spt - Spotify TUI"))?;
+    backend.execute(SetTitle("spt - Spotatui"))?;
   }
 
   let mut terminal = Terminal::new(backend)?;
