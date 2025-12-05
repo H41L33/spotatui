@@ -6,11 +6,12 @@
 
 
 
+[![Crates.io](https://img.shields.io/crates/v/spotatui.svg)](https://crates.io/crates/spotatui)
+[![Upstream](https://img.shields.io/badge/upstream-Rigellute%2Fspotify--tui-blue)](https://github.com/Rigellute/spotify-tui)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 [![All Contributors](https://img.shields.io/badge/all_contributors-94-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
-[![Follow Alexander Keliris (Rigellute)](https://img.shields.io/twitter/follow/AlexKeliris?label=Follow%20Alexander%20Keliris%20%28Rigellute%29&style=social)](https://twitter.com/intent/follow?screen_name=AlexKeliris)
 
 A Spotify client for the terminal written in Rust.
 
@@ -19,7 +20,11 @@ A Spotify client for the terminal written in Rust.
 The terminal in the demo above is using the [Rigel theme](https://rigel.netlify.com/).
 
 - [Spotatui](#spotatui)
-
+  - [Migrating from spotify-tui](#migrating-from-spotify-tui)
+  - [Installation](#installation)
+    - [Pre-built Binaries](#pre-built-binaries)
+    - [Cargo](#cargo)
+    - [Building from Source](#building-from-source)
   - [Connecting to Spotify’s API](#connecting-to-spotifys-api)
   - [Usage](#usage)
 - [Configuration](#configuration)
@@ -29,12 +34,52 @@ The terminal in the demo above is using the [Rigel theme](https://rigel.netlify.
   - [Libraries used](#libraries-used)
   - [Development](#development)
     - [Windows Subsystem for Linux](#windows-subsystem-for-linux)
+  - [Maintainer](#maintainer)
   - [Contributors](#contributors)
   - [Roadmap](#roadmap)
     - [High-level requirements yet to be implemented](#high-level-requirements-yet-to-be-implemented)
 
+## Migrating from spotify-tui
+
+If you used the original `spotify-tui` before:
+
+- The binary name changed from `spt` → `spotatui`.
+- Config paths changed:
+  - Old: `~/.config/spotify-tui/`
+  - New: `~/.config/spotatui/`
+
+You can copy your existing config:
+
+```bash
+mkdir -p ~/.config/spotatui
+cp -r ~/.config/spotify-tui/* ~/.config/spotatui/
+```
+
+You may be asked to re-authenticate with Spotify the first time.
+
 ## Installation
 
+### Pre-built Binaries
+
+Download the latest release for your platform from [GitHub Releases](https://github.com/LargeModGames/spotatui/releases/latest):
+
+| Platform                           | File                                  |
+| ---------------------------------- | ------------------------------------- |
+| Windows 10/11 (64-bit)             | `spotatui-windows-x86_64.zip`         |
+| Linux (Ubuntu, Arch, Fedora, etc.) | `spotatui-linux-x86_64.tar.gz`        |
+| Linux (Alpine / musl)              | `spotatui-linux-alpine-x86_64.tar.gz` |
+| macOS (Intel)                      | `spotatui-macos-x86_64.tar.gz`        |
+| macOS (Apple Silicon M1/M2/M3)     | `spotatui-macos-aarch64.tar.gz`       |
+
+Checksums (`.sha256`) are provided if you want to verify the download.
+
+### Cargo
+
+If you have Rust installed:
+
+```bash
+cargo install spotatui
+```
 
 ### Building from Source
 
@@ -120,7 +165,7 @@ The following is a sample config.yml file:
 # The theme colours can be an rgb string of the form "255, 255, 255" or a string that references the colours from your terminal theme: Reset, Black, Red, Green, Yellow, Blue, Magenta, Cyan, Gray, DarkGray, LightRed, LightGreen, LightYellow, LightBlue, LightMagenta, LightCyan, White.
 theme:
   active: Cyan # current playing song in list
-  banner: LightCyan # the "spotify-tui" banner on launch
+  banner: LightCyan # the "spotatui" banner on launch
   error_border: Red # error dialog border
   error_text: LightRed # error message text (e.g. "Spotify API reported error 404")
   hint: Yellow # hint text in errors
@@ -240,9 +285,9 @@ sudo apt-get install -y -qq pkg-config libssl-dev libxcb1-dev libxcb-render0-dev
 
 ## Maintainer
 
-Maintained by **LargeModGames** (<LargeModGames@gmail.com>).
+Maintained by **[LargeModGames](https://github.com/LargeModGames)**.
 
-Original author: Alexander Keliris.
+Original author: [Alexander Keliris](https://github.com/Rigellute).
 
 ## Contributors
 
