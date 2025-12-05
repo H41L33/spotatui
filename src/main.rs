@@ -174,7 +174,19 @@ of the app. Beware that this comes at a CPU cost!",
     .subcommand(cli::playback_subcommand())
     .subcommand(cli::play_subcommand())
     .subcommand(cli::list_subcommand())
-    .subcommand(cli::search_subcommand());
+    .subcommand(cli::search_subcommand())
+    // Self-update command
+    .subcommand(
+      clap::SubCommand::with_name("update")
+        .version(env!("CARGO_PKG_VERSION"))
+        .about("Check for and install updates")
+        .arg(
+          Arg::with_name("install")
+            .short("i")
+            .long("install")
+            .help("Install the update if available"),
+        ),
+    );
 
   let matches = clap_app.clone().get_matches();
 
@@ -188,8 +200,14 @@ of the app. Beware that this comes at a CPU cost!",
       "elvish" => Shell::Elvish,
       _ => return Err(anyhow!("no completions avaible for '{}'", s)),
     };
-    clap_app.gen_completions_to("spt", shell, &mut io::stdout());
+    clap_app.gen_completions_to("spotatui", shell, &mut io::stdout());
     return Ok(());
+  }
+
+  // Handle self-update command (doesn't need Spotify auth)
+  if let Some(update_matches) = matches.subcommand_matches("update") {
+    let do_install = update_matches.is_present("install");
+    return cli::check_for_update(do_install);
   }
 
   let mut user_config = UserConfig::new();

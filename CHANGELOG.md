@@ -16,7 +16,11 @@
 - Use typed `id()` keys for HashSet operations and simplify collections
 - Minor rendering and text updates, default ColumnId and ID checks in UI
 
+### Added
 
+- Add `spotatui update` command for self-updating from GitHub releases
+- Add comprehensive Copilot instructions documentation (`.github/copilot-instructions.md`)
+- Updated GitHub Actions workflow for automated cross-platform releases
 
 ## [0.25.1] - 2025-12-01
 
