@@ -21,13 +21,14 @@ build() {
   export RUSTUP_TOOLCHAIN=stable
   export CARGO_TARGET_DIR=target
   # Override RUSTFLAGS to avoid LLD linker issues with ring crate
-  export RUSTFLAGS=""
+  export RUSTFLAGS="-C linker-features=-lld"
   cargo build --frozen --release --all-features
 }
 
 check() {
   cd "$pkgname-$pkgver"
   export RUSTUP_TOOLCHAIN=stable
+  export RUSTFLAGS="-C linker-features=-lld"
   cargo test --frozen --all-features
 }
 
