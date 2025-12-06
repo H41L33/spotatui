@@ -1,4 +1,4 @@
- Maintainer: LargeModGames <LargeModGames@gmail.com>
+# Maintainer: LargeModGames <LargeModGames@gmail.com>
 pkgname=spotatui
 pkgver=0.27.15
 pkgrel=1
@@ -7,9 +7,9 @@ arch=('x86_64')
 url="https://github.com/LargeModGames/spotatui"
 license=('MIT')
 depends=('openssl')
-makedepends=('cargo')
+makedepends=('cargo' 'clang')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('SKIP') # Run 'updpkgsums' to update this
+sha256sums=('0b77f0dffaf26b85d78cbd3d1c66566bcc254a61dca2edc2dc2b26960f8772be')
 
 prepare() {
   cd "$pkgname-$pkgver"
@@ -20,6 +20,8 @@ build() {
   cd "$pkgname-$pkgver"
   export RUSTUP_TOOLCHAIN=stable
   export CARGO_TARGET_DIR=target
+  # Unset RUSTFLAGS to avoid LLD linker issues with ring crate
+  unset RUSTFLAGS
   cargo build --frozen --release --all-features
 }
 
