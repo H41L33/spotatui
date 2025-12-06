@@ -5,10 +5,9 @@
 > **Note:** This is a fork of the original [spotify-tui](https://github.com/Rigellute/spotify-tui) by Rigellute, which is no longer maintained. This fork aims to keep the project alive with updated dependencies and fixes.
 
 
-
 [![Crates.io](https://img.shields.io/crates/v/spotatui.svg)](https://crates.io/crates/spotatui)
 [![Upstream](https://img.shields.io/badge/upstream-Rigellute%2Fspotify--tui-blue)](https://github.com/Rigellute/spotify-tui)
-[![Global Songs Played](https://img.shields.io/badge/dynamic/json?url=https://spotatui-counter.spotatui.workers.dev&query=count&label=songs%20played%20globally&color=1DB954)](https://github.com/LargeModGames/spotatui)
+[![Global Songs Played](https://img.shields.io/badge/dynamic/json?url=https://spotatui-counter.spotatui.workers.dev&query=count&label=GLOBAL%20PLAYS&labelColor=0b0f14&color=1ed760&logo=spotify&logoColor=1ed760&style=flat-square&cacheSeconds=600)](https://github.com/LargeModGames/spotatui)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 [![All Contributors](https://img.shields.io/badge/all_contributors-94-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
