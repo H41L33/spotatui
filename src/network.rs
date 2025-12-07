@@ -115,7 +115,7 @@ impl Network {
   pub fn new(spotify: AuthCodeSpotify, client_config: ClientConfig, app: &Arc<Mutex<App>>) -> Self {
     Network {
       spotify,
-      large_search_limit: 20,
+      large_search_limit: 50,
       small_search_limit: 4,
       client_config,
       app: Arc::clone(app),
@@ -904,6 +904,7 @@ impl Network {
       .await
     {
       Ok(()) => {
+        tokio::time::sleep(Duration::from_millis(250)).await;
         self.get_current_playback().await;
       }
       Err(e) => {
@@ -919,6 +920,7 @@ impl Network {
       .await
     {
       Ok(()) => {
+        tokio::time::sleep(Duration::from_millis(250)).await;
         self.get_current_playback().await;
       }
       Err(e) => {
