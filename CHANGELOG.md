@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.32.0] - 2025-12-07
+
+### Added
+
+- **Native Spotify Streaming (Experimental)**: Spotatui can now play audio directly! No more need for spotifyd or an external Spotify client
+  - "Spotatui" appears as a Spotify Connect device in your device list
+  - Control playback from the TUI, phone, or any other Spotify client
+  - Powered by [librespot](https://github.com/librespot-org/librespot) for native audio
+  - New `streaming` feature flag (enabled by default)
+  - Requires separate OAuth flow with redirect URI `http://127.0.0.1:8989/login`
+
+### Changed
+
+- Updated README with Native Streaming documentation and setup instructions
+- Added second redirect URI requirement for Spotify app configuration
+
 ## [0.31.0] - 2025-12-07
 
 ### Added
