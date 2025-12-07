@@ -81,6 +81,7 @@ pub enum IoEvent {
   UserArtistFollowCheck(Vec<ArtistId<'static>>),
   GetAlbum(AlbumId<'static>),
   TransferPlaybackToDevice(String),
+  AutoSelectStreamingDevice(String), // Auto-select a device by name (used for native streaming)
   GetAlbumForTrack(TrackId<'static>),
   CurrentUserSavedTracksContains(Vec<TrackId<'static>>),
   GetCurrentUserSavedShows(Option<u32>),
@@ -247,6 +248,9 @@ impl Network {
       }
       IoEvent::TransferPlaybackToDevice(device_id) => {
         self.transfert_playback_to_device(device_id).await;
+      }
+      IoEvent::AutoSelectStreamingDevice(device_name) => {
+        self.auto_select_streaming_device(device_name).await;
       }
       IoEvent::GetAlbumForTrack(track_id) => {
         self.get_album_for_track(track_id).await;
@@ -1661,6 +1665,47 @@ impl Network {
         self.handle_error(e).await;
       }
     };
+  }
+
+  /// Auto-select a streaming device by name (used for native Spotatui streaming)
+  /// This will retry a few times since the device may take a moment to appear in Spotify's device list
+  async fn auto_select_streaming_device(&mut self, device_name: String) {
+    // Retry a few times since the device may not appear immediately
+    for attempt in 0..5 {
+      if attempt > 0 {
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+      }
+
+      match self.spotify.device().await {
+        Ok(devices) => {
+          // Find the device by name (case-insensitive)
+          if let Some(device) = devices
+            .iter()
+            .find(|d| d.name.to_lowercase() == device_name.to_lowercase())
+          {
+            if let Some(device_id) = &device.id {
+              // Transfer playback to this device
+              match self.spotify.transfer_playback(device_id, Some(false)).await {
+                Ok(()) => {
+                  // Save device ID to config
+                  let _ = self.client_config.set_device_id(device_id.clone());
+                  return;
+                }
+                Err(_) => {
+                  // Transfer failed, will retry
+                  continue;
+                }
+              }
+            }
+          }
+        }
+        Err(_) => {
+          // Failed to get devices, will retry
+          continue;
+        }
+      }
+    }
+    // Silently fail after retries - user can still manually select device with 'd'
   }
 
   async fn refresh_authentication(&mut self) {
