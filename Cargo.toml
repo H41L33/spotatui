@@ -6,7 +6,7 @@ documentation = "https://github.com/LargeModGames/spotatui"
 repository = "https://github.com/LargeModGames/spotatui"
 keywords = ["spotify", "tui", "cli", "terminal"]
 categories = ["command-line-utilities"]
-version = "0.28.6"
+version = "0.29.0"
 authors = ["LargeModGames <LargeModGames@gmail.com>"]
 edition = "2021"
 license = "MIT"
@@ -34,10 +34,17 @@ open = "5.0"
 self_update = { version = "0.41", features = ["archive-tar", "archive-zip", "compression-flate2", "compression-zip-deflate"] }
 reqwest = { version = "0.12", features = ["json", "native-tls"], default-features = false, optional = true }
 openssl = { version = "0.10", optional = true }
+cpal = { version = "0.15", optional = true }
+realfft = { version = "3.4", optional = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+pipewire = { version = "0.8", optional = true }
 
 [features]
-default = ["telemetry"]
+default = ["telemetry", "audio-viz"]
 telemetry = ["reqwest", "reqwest/native-tls"]
+audio-viz = ["realfft", "pipewire"]
+audio-viz-cpal = ["realfft", "cpal"]  # Alternative for Windows/macOS or if pipewire issues
 
 [target.'cfg(target_env = "musl")'.dependencies]
 openssl-sys = { version = "0.9", features = ["vendored"] }
