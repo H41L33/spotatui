@@ -7,7 +7,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/spotatui.svg)](https://crates.io/crates/spotatui)
 [![Upstream](https://img.shields.io/badge/upstream-Rigellute%2Fspotify--tui-blue)](https://github.com/Rigellute/spotify-tui)
-[![Global Songs Played](https://img.shields.io/badge/dynamic/json?url=https://spotatui-counter.spotatui.workers.dev&query=count&label=GLOBAL%20PLAYS&labelColor=0b0f14&color=1ed760&logo=spotify&logoColor=1ed760&style=flat-square&cacheSeconds=600)](https://github.com/LargeModGames/spotatui)
+[![Songs played using Spotatui](https://img.shields.io/badge/dynamic/json?url=https://spotatui-counter.spotatui.workers.dev&query=count&label=Songs%20played%20using%20Spotatui&labelColor=0b0f14&color=1ed760&logo=spotify&logoColor=1ed760&style=flat-square&cacheSeconds=600)](https://github.com/LargeModGames/spotatui)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 [![All Contributors](https://img.shields.io/badge/all_contributors-94-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
@@ -38,6 +38,7 @@ We respect your privacy. This is purely a fun community metric with zero trackin
   - [Installation](#installation)
     - [Arch Linux (AUR)](#arch-linux-aur)
     - [Pre-built Binaries](#pre-built-binaries)
+      - [Linux Requirements](#linux-requirements)
     - [Cargo](#cargo)
     - [Building from Source](#building-from-source)
   - [Connecting to Spotify’s API](#connecting-to-spotifys-api)
@@ -101,6 +102,23 @@ Download the latest release for your platform from [GitHub Releases](https://git
 | macOS (Apple Silicon M1/M2/M3)     | `spotatui-macos-aarch64.tar.gz`       |
 
 Checksums (`.sha256`) are provided if you want to verify the download.
+
+#### Linux Requirements
+
+For audio visualization on Linux, you need PipeWire installed:
+
+```bash
+# Debian/Ubuntu
+sudo apt-get install libpipewire-0.3-0
+
+# Arch Linux (already included with pipewire)
+sudo pacman -S pipewire
+
+# Fedora (already included with pipewire)
+sudo dnf install pipewire
+```
+
+> **Note:** Most modern Linux distributions already have PipeWire installed by default.
 
 ### Cargo
 
@@ -277,10 +295,8 @@ If you want to play tracks, Spotify requires that you have a Premium account.
 
 **Note:** As of November 2024, Spotify deprecated and removed access to certain API endpoints for new applications. The following features are included in this app but **will only work if your Spotify Developer application was created before November 27, 2024**:
 
-- **Audio Analysis Visualization** (press `v`): Real-time music visualization showing tempo, key, time signature, and animated pitch analysis synchronized to the currently playing track.
-- **Related Artists**: When viewing an artist page, the "Related Artists" section shows similar artists based on Spotify's recommendation algorithm.
-
-If you created your Spotify app after this date, these features will display an error message explaining they are unavailable. All other functionality works normally.
+- **Audio Visualization** (press `v`): Now uses **local real-time FFT analysis** of your system audio. On Linux, this requires PipeWire. The visualization no longer depends on Spotify's deprecated Audio Analysis API.
+- **Related Artists**: When viewing an artist page, the "Related Artists" section shows similar artists based on Spotify's recommendation algorithm. This feature **only works if your Spotify Developer application was created before November 27, 2024**.
 
 For more information, see [Spotify's announcement about API changes](https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api).
 
@@ -304,6 +320,17 @@ After that there is not much to it.
 1. [Install OpenSSL](https://docs.rs/openssl/0.10.25/openssl/#automatic)
 1. [Install Rust](https://www.rust-lang.org/tools/install)
 1. [Install `xorg-dev`](https://github.com/aweinstock314/rust-clipboard#prerequisites) (required for clipboard support)
+1. **Linux only:** Install PipeWire development libraries (required for audio visualization)
+   ```bash
+   # Debian/Ubuntu
+   sudo apt-get install libpipewire-0.3-dev libspa-0.2-dev
+   
+   # Arch Linux
+   sudo pacman -S pipewire
+   
+   # Fedora
+   sudo dnf install pipewire-devel
+   ```
 1. Clone or fork this repo and `cd` to it
 1. And then `cargo run`
 
