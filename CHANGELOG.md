@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.29.0] - 2025-12-07
+
+### Added
+
+- **Real-time Audio Visualization**: Press `v` to see a live spectrum analyzer visualization
+  - Native PipeWire integration on Linux for seamless audio capture without playback interference
+  - FFT-based frequency analysis with 12 frequency bands (Sub to Ultra)
+  - Smooth 60 FPS animation with pleasing visual aesthetics
+  - Automatic sink monitor detection on Linux via PipeWire
+  - No longer depends on Spotify's deprecated Audio Analysis API
+- Added `audio-viz` feature flag (enabled by default on Linux)
+- Added `pipewire` and `realfft` dependencies for audio processing
+
+### Changed
+
+- Default tick rate changed from 250ms to 16ms (~60 FPS) for smoother UI
+- Audio visualization UI shows cleaner status with just "🎵 Capturing audio" and peak level
+
+### Linux Requirements
+
+- **PipeWire** development libraries required for audio visualization:
+  - Debian/Ubuntu: `libpipewire-0.3-dev libspa-0.2-dev`
+  - Arch Linux: `pipewire`
+  - Fedora: `pipewire-devel`
+
 ## [0.28.0] - 2025-12-06
 
 ### Added
