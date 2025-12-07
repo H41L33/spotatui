@@ -36,7 +36,6 @@ We respect your privacy. This is purely a fun community metric with zero trackin
   - [Privacy Notice](#privacy-notice)
   - [Migrating from spotify-tui](#migrating-from-spotify-tui)
   - [Installation](#installation)
-    - [Arch Linux (AUR)](#arch-linux-aur)
     - [Pre-built Binaries](#pre-built-binaries)
       - [Linux Requirements](#linux-requirements)
     - [Cargo](#cargo)
@@ -74,20 +73,6 @@ cp -r ~/.config/spotify-tui/* ~/.config/spotatui/
 You may be asked to re-authenticate with Spotify the first time.
 
 ## Installation
-
-### Arch Linux (AUR)
-
-If you're on Arch Linux, install from the [AUR](https://aur.archlinux.org/packages/spotatui):
-
-```bash
-# Using an AUR helper like yay
-yay -S spotatui
-
-# Or manually
-git clone https://aur.archlinux.org/spotatui.git
-cd spotatui
-makepkg -si
-```
 
 ### Pre-built Binaries
 
