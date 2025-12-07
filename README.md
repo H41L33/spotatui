@@ -484,8 +484,6 @@ This project follows the [all-contributors](https://github.com/all-contributors/
 
 ## Star History
 
-## Star History
-
 <a href="https://www.star-history.com/#LargeModGames/spotatui&type=date&legend=top-left">
  <picture>
    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=LargeModGames/spotatui&type=date&theme=dark&legend=top-left" />
