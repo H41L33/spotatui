@@ -70,9 +70,7 @@ impl AudioCaptureManager {
     #[cfg(target_os = "windows")]
     {
       // On Windows, WASAPI supports loopback on output devices
-      if let Some(device) = host.default_output_device() {
-        return Some(device);
-      }
+      return host.default_output_device();
     }
 
     #[cfg(target_os = "linux")]

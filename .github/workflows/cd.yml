@@ -26,7 +26,7 @@ jobs:
             target: x86_64-unknown-linux-musl
             artifact_prefix: linux-alpine-x86_64 # Alpine / musl
             binary_postfix: ""
-            audio_features: "audio-viz"
+            audio_features: ""  # No audio-viz for musl (pkg-config cross-compilation not supported)
           - os: macos-latest
             target: x86_64-apple-darwin
             artifact_prefix: macos-x86_64
@@ -67,7 +67,13 @@ jobs:
         run: brew install openssl@3
 
       - name: Build release binary
-        run: cargo build --release --target ${{ matrix.target }} --no-default-features --features telemetry,${{ matrix.audio_features }}
+        run: |
+          if [ -z "${{ matrix.audio_features }}" ]; then
+            cargo build --release --target ${{ matrix.target }} --no-default-features --features telemetry
+          else
+            cargo build --release --target ${{ matrix.target }} --no-default-features --features telemetry,${{ matrix.audio_features }}
+          fi
+        shell: bash
 
       - name: Package binary (Unix)
         if: runner.os != 'Windows'
