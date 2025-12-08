@@ -84,6 +84,7 @@ pub enum IoEvent {
   UserArtistFollowCheck(Vec<ArtistId<'static>>),
   GetAlbum(AlbumId<'static>),
   TransferPlaybackToDevice(String),
+  #[allow(dead_code)]
   AutoSelectStreamingDevice(String), // Auto-select a device by name (used for native streaming)
   GetAlbumForTrack(TrackId<'static>),
   CurrentUserSavedTracksContains(Vec<TrackId<'static>>),
