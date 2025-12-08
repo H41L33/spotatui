@@ -268,18 +268,13 @@ pub struct SpectrumData {
   pub peak: f32,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Default)]
 pub enum LyricsStatus {
+  #[default]
   NotStarted,
   Loading,
   Found,
   NotFound,
-}
-
-impl Default for LyricsStatus {
-  fn default() -> Self {
-    LyricsStatus::NotStarted
-  }
 }
 
 /// Settings screen category tabs

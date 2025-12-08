@@ -153,7 +153,7 @@ impl ThemePreset {
   }
 
   /// Get the theme colors for this preset
-  pub fn to_theme(&self) -> Theme {
+  pub fn to_theme(self) -> Theme {
     match self {
       ThemePreset::Default => Theme::default(),
       ThemePreset::Dracula => Theme {
