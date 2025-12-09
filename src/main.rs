@@ -81,7 +81,7 @@ async fn save_token_to_file(spotify: &AuthCodeSpotify, path: &PathBuf) -> Result
   if let Some(ref token) = *token_lock {
     let token_json = serde_json::to_string_pretty(token)?;
     fs::write(path, token_json)?;
-    println!("✓ Token saved to {}", path.display());
+    println!("Token saved to {}", path.display());
   }
   Ok(())
 }
@@ -98,7 +98,7 @@ async fn load_token_from_file(spotify: &AuthCodeSpotify, path: &PathBuf) -> Resu
   *token_lock = Some(token);
   drop(token_lock);
 
-  println!("✓ Found cached authentication token");
+  println!("Found cached authentication token");
   Ok(true)
 }
 
