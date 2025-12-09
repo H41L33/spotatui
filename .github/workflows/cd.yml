@@ -187,7 +187,7 @@ jobs:
       - name: Checkout AUR repository
         uses: actions/checkout@v4
         with:
-          repository: LargeModGames/spotatui-aur
+          repository: LargeModGames/spotatui
           ssh-key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
           path: aur
 
