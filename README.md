@@ -40,7 +40,8 @@ We respect your privacy. This is purely a fun community metric with zero trackin
     - [Arch Linux (AUR)](#arch-linux-aur)
     - [Cargo](#cargo)
     - [Building from Source](#building-from-source)
-  - [Connecting to Spotify’s API](#connecting-to-spotifys-api)
+    - [Updating](#updating)
+  - [Connecting to Spotify's API](#connecting-to-spotifys-api)
   - [Usage](#usage)
   - [Native Streaming (Experimental)](#native-streaming-experimental)
     - [Setup](#setup)
@@ -156,7 +157,19 @@ Ensure you have [Rust](https://www.rust-lang.org/tools/install) installed.
     cargo run --release
     ```
 
-## Connecting to Spotify’s API
+### Updating
+
+When a new version of spotatui is available, you'll see a popup notification on startup. To update:
+
+1. Close spotatui
+2. Run the following command:
+   ```bash
+   spotatui update --install
+   ```
+
+This will download and install the latest version automatically.
+
+## Connecting to Spotify's API
 
 `spotatui` needs to connect to Spotify’s API in order to find music by
 name, play tracks etc.
