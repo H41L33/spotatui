@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.33.9] - 2025-12-10
+
+### Added
+
+- **MPRIS D-Bus Integration (Linux)**: Desktop media control support for Linux users
+  - Control spotatui via media keys (play/pause, next, previous)
+  - Compatible with `playerctl` command-line tool
+  - Desktop environment integration (GNOME, KDE media widgets)
+  - Track metadata exposed (title, artist, album, duration)
+  - Playback status and volume synced to D-Bus
+  - Requires native streaming feature (enabled by default on Linux)
+
 ## [0.33.8] - 2025-12-09
 
 ### Changed
